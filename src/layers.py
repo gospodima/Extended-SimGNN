@@ -40,13 +40,13 @@ class AttentionModule(torch.nn.Module):
         :return representation: A graph level representation matrix. 
         """
         size = batch[-1].item() + 1 if size is None else size
-        mean = scatter_('mean', x, batch, size)
+        mean = scatter_('mean', x, batch, dim_size=size)
         transformed_global = torch.tanh(torch.mm(mean, self.weight_matrix))
         
         coefs = torch.sigmoid((x * transformed_global[batch]).sum(dim=1))
         weighted = coefs.unsqueeze(-1) * x
         
-        return scatter_('add', weighted, batch, size)
+        return scatter_('add', weighted, batch, dim_size=size)
         
     def get_coefs(self, x):
         mean = x.mean(dim=0)
