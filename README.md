@@ -4,9 +4,10 @@ A PyTorch Geometric implementation of "SimGNN: A Neural Network Approach to Fast
 extended with Graph Isomorphism Operator from the [“How Powerful are Graph Neural Networks?”](https://arxiv.org/abs/1810.00826) paper
 and Differentiable Pooling Operator from from the ["Hierarchical Graph Representation Learning with Differentiable Pooling"](https://arxiv.org/abs/1806.08804) paper.  
 
-This implementation was written and used to conduct experiments for my bachelor thesis "Approximating the Graph Edit Distance via Deep Learning" at the Technical University of Dortmund.
+This implementation was written and used to conduct experiments for my bachelor thesis "Approximating the Graph Edit Distance via Deep Learning" at the Technical University of Dortmund.  
+The code in this repository can be changed and updated. The original code that was attached to my thesis can be viewed in the [initial commit](https://github.com/gospodima/Extended-SimGNN/tree/f7f10f032a7a78eac3f609790e50e7627b1de322).
 
-The project structure is based on the PyTorch implementation [[benedekrozemberczki/SimGNN]](https://github.com/benedekrozemberczki/SimGNN).  
+The project structure is based on the PyTorch implementation [[benedekrozemberczki/SimGNN]](https://github.com/benedekrozemberczki/SimGNN) (repo was deleted).  
 A reference Tensorflow implementation is accessible [[here]](https://github.com/yunshengb/SimGNN).
 
 
