@@ -7,7 +7,7 @@ and Differentiable Pooling Operator from from the ["Hierarchical Graph Represent
 This implementation was written and used to conduct experiments for my bachelor thesis "Approximating the Graph Edit Distance via Deep Learning" at the Technical University of Dortmund.  
 The code in this repository can be changed and updated. The original code that was attached to my thesis can be viewed in the [initial commit](https://github.com/gospodima/Extended-SimGNN/tree/f7f10f032a7a78eac3f609790e50e7627b1de322).
 
-The project structure is based on the PyTorch implementation [[benedekrozemberczki/SimGNN]](https://github.com/benedekrozemberczki/SimGNN) (repo was deleted).  
+The project structure is based on the PyTorch implementation [[benedekrozemberczki/SimGNN]](https://github.com/benedekrozemberczki/SimGNN).  
 A reference Tensorflow implementation is accessible [[here]](https://github.com/yunshengb/SimGNN).
 
 
