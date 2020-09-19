@@ -5,7 +5,7 @@ from math import ceil
 from torch.nn import Linear, ReLU
 from torch_geometric.nn import DenseSAGEConv, DenseGCNConv, DenseGINConv, dense_diff_pool, JumpingKnowledge
 from torch_geometric.utils import scatter_
-from torch_geometric.nn.inits import reset
+
 
 class AttentionModule(torch.nn.Module):
     """
@@ -36,6 +36,7 @@ class AttentionModule(torch.nn.Module):
         """
         Making a forward propagation pass to create a graph level representation.
         :param x: Result of the GNN.
+        :param size: Dimension size for scatter_
         :param batch: Batch vector, which assigns each node to a specific example
         :return representation: A graph level representation matrix. 
         """
@@ -53,6 +54,7 @@ class AttentionModule(torch.nn.Module):
         transformed_global = torch.tanh(torch.matmul(mean, self.weight_matrix))
 
         return torch.sigmoid(torch.matmul(x, transformed_global))
+
 
 class DenseAttentionModule(torch.nn.Module):
     """
@@ -104,6 +106,7 @@ class DenseAttentionModule(torch.nn.Module):
         
         return weighted.sum(dim=1)
 
+
 class TensorNetworkModule(torch.nn.Module):
     """
     SimGNN Tensor Network module to calculate similarity vector.
@@ -141,13 +144,14 @@ class TensorNetworkModule(torch.nn.Module):
         :return scores: A similarity score vector.
         """
         batch_size = len(embedding_1)
-        scoring = torch.matmul(embedding_1, self.weight_matrix.view(self.args.filters_3,-1))
+        scoring = torch.matmul(embedding_1, self.weight_matrix.view(self.args.filters_3, -1))
         scoring = scoring.view(batch_size, self.args.filters_3, -1).permute([0, 2, 1])
         scoring = torch.matmul(scoring, embedding_2.view(batch_size, self.args.filters_3, 1)).view(batch_size, -1)
         combined_representation = torch.cat((embedding_1, embedding_2), 1)
         block_scoring = torch.t(torch.mm(self.weight_matrix_block, torch.t(combined_representation)))
         scores = F.relu(scoring + block_scoring + self.bias.view(-1))
         return scores
+
 
 class Block(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, mode='cat'):
@@ -190,7 +194,7 @@ class Block(torch.nn.Module):
 
 
 class DiffPool(torch.nn.Module):
-    def __init__(self, args, num_nodes = 10, num_layers = 4, hidden = 16, ratio=0.25):
+    def __init__(self, args, num_nodes=10, num_layers=4, hidden=16, ratio=0.25):
         super(DiffPool, self).__init__()
         
         self.args = args

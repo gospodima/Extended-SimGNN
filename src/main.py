@@ -1,6 +1,7 @@
-from utils import tab_printer
-from simgnn import SimGNNTrainer
-from parser import parameter_parser
+from .utils import tab_printer
+from .simgnn import SimGNNTrainer
+from .parser import parameter_parser
+
 
 def main():
     """
@@ -26,6 +27,7 @@ def main():
                       """)
         else:
             raise NotImplementedError('No support for this OS.')
-    
+
+
 if __name__ == "__main__":
     main()

@@ -1,7 +1,5 @@
-import json
 import math
 import numpy as np
-import statistics
 import networkx as nx
 import torch
 import random
@@ -9,6 +7,7 @@ from texttable import Texttable
 from torch_geometric.utils import erdos_renyi_graph, to_undirected, to_networkx
 from torch_geometric.data import Data
 import matplotlib.pyplot as plt
+
 
 def tab_printer(args):
     """
@@ -20,6 +19,7 @@ def tab_printer(args):
     t = Texttable() 
     t.add_rows([["Parameter", "Value"]] +  [[k.replace("_"," ").capitalize(), args[k]] for k in keys])
     print(t.draw())
+
 
 def calculate_ranking_correlation(rank_corr_function, prediction, target):
     """
@@ -39,6 +39,7 @@ def calculate_ranking_correlation(rank_corr_function, prediction, target):
     
     return rank_corr_function(r_prediction, r_target).correlation
 
+
 def calculate_prec_at_k(k, prediction, target):
     """
     Calculating precision at k.
@@ -48,18 +49,21 @@ def calculate_prec_at_k(k, prediction, target):
     
     return len(set(best_k_pred).intersection(set(best_k_target))) / k
 
+
 def denormalize_sim_score(g1, g2, sim_score):
     """
     Converts normalized similar into ged.
     """
     return denormalize_ged(g1, g2, -math.log(sim_score, math.e))
 
+
 def denormalize_ged(g1, g2, nged):
     """
     Converts normalized ged into ged.
     """
     return round(nged * (g1.num_nodes + g2.num_nodes) / 2)
-    
+
+
 def gen_synth_data(count=200, nl=None, nu=50, p=0.5, kl=None, ku=2):
     """
     Generating synthetic data based on Erdos–Renyi model.
@@ -95,6 +99,7 @@ def gen_synth_data(count=200, nl=None, nu=50, p=0.5, kl=None, ku=2):
             
     return data, data_new, mat, norm_mat
 
+
 def gen_pairs(graphs, kl=None, ku=2):
     gen_graphs_1 = []
     gen_graphs_2 = []
@@ -113,12 +118,14 @@ def gen_pairs(graphs, kl=None, ku=2):
         norm_mat[i, i] = ged / (0.5 * (g.num_nodes + g2.num_nodes))
     
     return gen_graphs_1, gen_graphs_2, mat, norm_mat
-        
+
+
 def to_directed(edge_index):
     row, col = edge_index
     mask = row < col
     row, col = row[mask], col[mask]
     return torch.stack([row, col], dim=0)
+
 
 def gen_pair(g, kl=None, ku=2):
     if kl is None:
@@ -157,6 +164,7 @@ def gen_pair(g, kl=None, ku=2):
     g2.num_nodes = g.num_nodes
     return g2, to_remove + to_add
 
+
 def aids_labels(g):
     types = [
         'O', 'S', 'C', 'N', 'Cl', 'Br', 'B', 'Si', 'Hg', 'I', 'Bi', 'P', 'F',
@@ -165,6 +173,7 @@ def aids_labels(g):
     ]
     
     return [types[i] for i in g.x.argmax(dim=1).tolist()]
+
 
 def draw_graphs(glist, aids=False):
     for i, g in enumerate(glist):
@@ -179,6 +188,7 @@ def draw_graphs(glist, aids=False):
         else:
             nx.draw(G)
         plt.savefig('graph{}.png'.format(i))
+
 
 def draw_weighted_nodes(filename, g, model):
     """

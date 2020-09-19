@@ -20,6 +20,7 @@ from torch_geometric.transforms import OneHotDegree
 
 import matplotlib.pyplot as plt
 
+
 class SimGNN(torch.nn.Module):
     """
     SimGNN: A Neural Network Approach to Fast Graph Similarity Computation
@@ -39,10 +40,10 @@ class SimGNN(torch.nn.Module):
         """
         Deciding the shape of the bottleneck layer.
         """
-        if self.args.histogram == True:
+        if self.args.histogram:
             self.feature_count = self.args.tensor_neurons + self.args.bins
         else:
-            self.feature_count = self.args.tensor_neurons 
+            self.feature_count = self.args.tensor_neurons
 
     def setup_layers(self):
         """
@@ -138,6 +139,7 @@ class SimGNN(torch.nn.Module):
         """
         Making differentiable pooling.
         :param abstract_features: Node feature matrix.
+        :param edge_index: Edge indices
         :param batch: Batch vector, which assigns each node to a specific example
         :return pooled_features: Graph feature matrix.
         """
@@ -161,7 +163,7 @@ class SimGNN(torch.nn.Module):
         abstract_features_1 = self.convolutional_pass(edge_index_1, features_1)
         abstract_features_2 = self.convolutional_pass(edge_index_2, features_2)
 
-        if self.args.histogram == True:
+        if self.args.histogram:
             hist = self.calculate_histogram(abstract_features_1, abstract_features_2, batch_1, batch_2)
         
         if self.args.diffpool:
@@ -173,12 +175,13 @@ class SimGNN(torch.nn.Module):
             
         scores = self.tensor_network(pooled_features_1, pooled_features_2)
         
-        if self.args.histogram == True:
-            scores = torch.cat((scores,hist),dim=1)
+        if self.args.histogram:
+            scores = torch.cat((scores, hist), dim=1)
         
         scores = F.relu(self.fully_connected_first(scores))
         score = torch.sigmoid(self.scoring_layer(scores)).view(-1)
         return score
+
 
 class SimGNNTrainer(object):
     """
@@ -255,7 +258,6 @@ class SimGNNTrainer(object):
         
         return list(zip(source_loader, target_loader))
 
-
     def transform(self, data):
         """
         Getting ged for graph pair and grouping with data into dictionary.
@@ -281,7 +283,7 @@ class SimGNNTrainer(object):
         data = self.transform(data)
         target = data["target"]
         prediction = self.model(data)
-        loss = F.mse_loss(prediction, data["target"], reduction='sum')
+        loss = F.mse_loss(prediction, target, reduction='sum')
         loss.backward()
         self.optimizer.step()
         return loss.item()
@@ -353,7 +355,7 @@ class SimGNNTrainer(object):
         
         t = np.empty(count)
         i = 0
-        tq = tqdm(total=count, desc = "Graph pairs")
+        tq = tqdm(total=count, desc="Graph pairs")
         for g1 in self.testing_graphs:
             for g2 in self.training_graphs:
                 source_batch = Batch.from_data_list([g1])
@@ -367,7 +369,7 @@ class SimGNNTrainer(object):
                 tq.update()
         tq.close()
         
-        print("Average time (ms): {}; Standard deviation: {}".format(round(t.mean()*1000,5), round(t.std()*1000,5)))     
+        print("Average time (ms): {}; Standard deviation: {}".format(round(t.mean()*1000, 5), round(t.std()*1000, 5)))
     
     def score(self):
         """
