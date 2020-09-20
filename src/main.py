@@ -18,7 +18,8 @@ def main():
         trainer.score()
     
     if args.notify:
-        import os, sys
+        import os
+        import sys
         if sys.platform == 'linux':
             os.system('notify-send SimGNN "Program is finished."')
         elif sys.platform == 'posix':
@@ -26,7 +27,7 @@ def main():
                       osascript -e 'display notification "SimGNN" with title "Program is finished."'
                       """)
         else:
-            raise NotImplementedError('No support for this OS.')
+            raise NotImplementedError('No notification support for this OS.')
 
 
 if __name__ == "__main__":

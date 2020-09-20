@@ -1,19 +1,15 @@
-import glob
-import time
-import math
 import torch
 import random
-import itertools
 import numpy as np
 import torch.nn.functional as F
 from tqdm import tqdm, trange
 from scipy.stats import spearmanr, kendalltau
 
-from layers import AttentionModule, TensorNetworkModule, Block, DiffPool
-from utils import calculate_ranking_correlation, calculate_prec_at_k, gen_synth_data, gen_pairs
+from .layers import AttentionModule, TensorNetworkModule, DiffPool
+from .utils import calculate_ranking_correlation, calculate_prec_at_k, gen_pairs
 
 from torch_geometric.nn import GCNConv, GINConv
-from torch_geometric.data import DataLoader, Data, Batch
+from torch_geometric.data import DataLoader, Batch
 from torch_geometric.utils import to_dense_batch, to_dense_adj, degree
 from torch_geometric.datasets import GEDDataset
 from torch_geometric.transforms import OneHotDegree
@@ -114,7 +110,7 @@ class SimGNN(torch.nn.Module):
             mat = torch.sigmoid(mat[:num_nodes[i], :num_nodes[i]]).view(-1)
             hist = torch.histc(mat, bins=self.args.bins)
             hist = hist/torch.sum(hist)
-            hist = hist.view(1,-1)
+            hist = hist.view(1, -1)
             hist_list.append(hist)
         
         return torch.stack(hist_list).view(-1, self.args.bins)
@@ -408,11 +404,11 @@ class SimGNNTrainer(object):
 
             t.update(len(self.training_graphs))
 
-        self.rho = np.mean(rho_list)
-        self.tau = np.mean(tau_list)
-        self.prec_at_10 = np.mean(prec_at_10_list)
-        self.prec_at_20 = np.mean(prec_at_20_list)
-        self.model_error = np.mean(scores)
+        self.rho = np.mean(rho_list).item()
+        self.tau = np.mean(tau_list).item()
+        self.prec_at_10 = np.mean(prec_at_10_list).item()
+        self.prec_at_20 = np.mean(prec_at_20_list).item()
+        self.model_error = np.mean(scores).item()
         self.print_evaluation()
 
     def print_evaluation(self):
