@@ -44,7 +44,7 @@ Training a SimGNN model is handled by the `src/main.py` script which provides th
 
 #### Input and output options
 ```
-  --database    STR     Name of the dataset to be used.         Default is `AIDS700nef`.
+  --dataset     STR     Name of the dataset to be used.         Default is `AIDS700nef`.
   --plot        BOOL    Plot mse values during the learning.    Default is False.
 ```
 #### Model options
@@ -86,7 +86,7 @@ python src/main.py --epochs 1000 --batch-size 512
 ```
 Training a SimGNN on the LINUX dataset with histogram features, GIN instead of GCN and DiffPool instead of attention mechanism from the paper.
 ```
-python src/main.py --database LINUX --histogram --gnn-operator gin --diffpool
+python src/main.py --dataset LINUX --histogram --gnn-operator gin --diffpool
 ```
 Drawing up a graphic of mse values during the learning.
 ```
