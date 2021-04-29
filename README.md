@@ -17,22 +17,22 @@ A reference Tensorflow implementation is accessible [[here]](https://github.com/
 <p align="justify">
 
 ### Requirements
-The codebase is implemented in Python 3.5.2. package versions used for development are just below.
+The codebase is implemented in Python 3.6.9. package versions used for development are just below.
 ```
-matplotlib        3.0.3
-networkx          2.3
-numpy             1.16.3
-pandas            0.24.2
-scikit-learn      0.21.1
-scipy             1.3.0
-texttable         1.6.1
-torch             1.1.0
-torch-cluster     1.4.0
-torch-geometric   1.3.0
-torch-scatter     1.2.0
-torch-sparse      0.4.0
-torchvision       0.2.2
-tqdm              4.32.1
+matplotlib        3.1.3
+networkx          2.4
+numpy             1.19.5
+pandas            1.1.2
+scikit-learn      0.23.2
+scipy             1.4.1
+texttable         1.6.3
+torch             1.7.1
+torch-cluster     1.5.9
+torch-geometric   1.7.0
+torch-scatter     2.0.6
+torch-sparse      0.6.9
+torchvision       0.8.2
+tqdm              4.60.0
 ```
 ### Datasets
 The datasets are taken with the help of [GEDDataset](https://pytorch-geometric.readthedocs.io/en/latest/modules/datasets.html#torch_geometric.datasets.GEDDataset),
