@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from math import ceil
 from torch.nn import Linear, ReLU
 from torch_geometric.nn import DenseSAGEConv, DenseGCNConv, DenseGINConv, dense_diff_pool, JumpingKnowledge
-from torch_geometric.utils import scatter_
+from torch_scatter import scatter_mean, scatter_add
 
 
 class AttentionModule(torch.nn.Module):
@@ -41,13 +41,13 @@ class AttentionModule(torch.nn.Module):
         :return representation: A graph level representation matrix. 
         """
         size = batch[-1].item() + 1 if size is None else size
-        mean = scatter_('mean', x, batch, dim_size=size)
+        mean = scatter_mean(x, batch, dim=0, dim_size=size)
         transformed_global = torch.tanh(torch.mm(mean, self.weight_matrix))
         
         coefs = torch.sigmoid((x * transformed_global[batch]).sum(dim=1))
         weighted = coefs.unsqueeze(-1) * x
         
-        return scatter_('add', weighted, batch, dim_size=size)
+        return scatter_add(weighted, batch, dim=0, dim_size=size)
         
     def get_coefs(self, x):
         mean = x.mean(dim=0)
