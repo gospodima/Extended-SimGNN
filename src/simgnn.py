@@ -5,8 +5,8 @@ import torch.nn.functional as F
 from tqdm import tqdm, trange
 from scipy.stats import spearmanr, kendalltau
 
-from .layers import AttentionModule, TensorNetworkModule, DiffPool
-from .utils import calculate_ranking_correlation, calculate_prec_at_k, gen_pairs
+from layers import AttentionModule, TensorNetworkModule, DiffPool
+from utils import calculate_ranking_correlation, calculate_prec_at_k, gen_pairs
 
 from torch_geometric.nn import GCNConv, GINConv
 from torch_geometric.data import DataLoader, Batch
@@ -292,7 +292,7 @@ class SimGNNTrainer(object):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.learning_rate, weight_decay=self.args.weight_decay)
         self.model.train()
         
-        epochs = trange(self.args.epochs, leave=True, desc = "Epoch")
+        epochs = trange(self.args.epochs, leave=True, desc="Epoch")
         loss_list = []
         loss_list_test = []
         for epoch in epochs:
@@ -302,7 +302,7 @@ class SimGNNTrainer(object):
                     self.model.train(False)
                     cnt_test = 20
                     cnt_train = 100
-                    t = tqdm(total=cnt_test*cnt_train, position=2, leave=False, desc = "Validation")
+                    t = tqdm(total=cnt_test*cnt_train, position=2, leave=False, desc="Validation")
                     scores = torch.empty((cnt_test, cnt_train))
                     
                     for i, g in enumerate(self.testing_graphs[:cnt_test].shuffle()):
@@ -322,7 +322,7 @@ class SimGNNTrainer(object):
             batches = self.create_batches()
             main_index = 0
             loss_sum = 0
-            for index, batch_pair in tqdm(enumerate(batches), total=len(batches), desc = "Batches"):
+            for index, batch_pair in tqdm(enumerate(batches), total=len(batches), desc="Batches", leave=False):
                 loss_score = self.process_batch(batch_pair)
                 main_index = main_index + batch_pair[0].num_graphs
                 loss_sum = loss_sum + loss_score
