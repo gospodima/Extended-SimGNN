@@ -134,7 +134,7 @@ def gen_pair(g, kl=None, ku=2):
     directed_edge_index = to_directed(g.edge_index)
     
     n = g.num_nodes
-    num_edges = directed_edge_index.size(1)
+    num_edges = directed_edge_index.size()[1]
     to_remove = random.randint(kl, ku)
     
     edge_index_n = directed_edge_index[:,torch.randperm(num_edges)[to_remove:]]
@@ -147,7 +147,7 @@ def gen_pair(g, kl=None, ku=2):
     non_edge_index = adj.nonzero().t()
     
     directed_non_edge_index = to_directed(non_edge_index)
-    num_edges = directed_non_edge_index.size(1)
+    num_edges = directed_non_edge_index.size()[1]
 
     to_add = random.randint(kl, ku)
     
