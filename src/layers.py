@@ -3,7 +3,13 @@ import torch.nn.functional as F
 
 from math import ceil
 from torch.nn import Linear, ReLU
-from torch_geometric.nn import DenseSAGEConv, DenseGCNConv, DenseGINConv, dense_diff_pool, JumpingKnowledge
+from torch_geometric.nn import (
+    DenseSAGEConv,
+    DenseGCNConv,
+    DenseGINConv,
+    dense_diff_pool,
+    JumpingKnowledge,
+)
 from torch_scatter import scatter_mean, scatter_add
 
 
@@ -11,6 +17,7 @@ class AttentionModule(torch.nn.Module):
     """
     SimGNN Attention Module to make a pass on graph.
     """
+
     def __init__(self, args):
         """
         :param args: Arguments object.
@@ -24,8 +31,10 @@ class AttentionModule(torch.nn.Module):
         """
         Defining weights.
         """
-        self.weight_matrix = torch.nn.Parameter(torch.Tensor(self.args.filters_3, self.args.filters_3)) 
-        
+        self.weight_matrix = torch.nn.Parameter(
+            torch.Tensor(self.args.filters_3, self.args.filters_3)
+        )
+
     def init_parameters(self):
         """
         Initializing weights.
@@ -38,17 +47,17 @@ class AttentionModule(torch.nn.Module):
         :param x: Result of the GNN.
         :param size: Dimension size for scatter_
         :param batch: Batch vector, which assigns each node to a specific example
-        :return representation: A graph level representation matrix. 
+        :return representation: A graph level representation matrix.
         """
         size = batch[-1].item() + 1 if size is None else size
         mean = scatter_mean(x, batch, dim=0, dim_size=size)
         transformed_global = torch.tanh(torch.mm(mean, self.weight_matrix))
-        
+
         coefs = torch.sigmoid((x * transformed_global[batch]).sum(dim=1))
         weighted = coefs.unsqueeze(-1) * x
-        
+
         return scatter_add(weighted, batch, dim=0, dim_size=size)
-        
+
     def get_coefs(self, x):
         mean = x.mean(dim=0)
         transformed_global = torch.tanh(torch.matmul(mean, self.weight_matrix))
@@ -60,6 +69,7 @@ class DenseAttentionModule(torch.nn.Module):
     """
     SimGNN Dense Attention Module to make a pass on graph.
     """
+
     def __init__(self, args):
         """
         :param args: Arguments object.
@@ -73,8 +83,10 @@ class DenseAttentionModule(torch.nn.Module):
         """
         Defining weights.
         """
-        self.weight_matrix = torch.nn.Parameter(torch.Tensor(self.args.filters_3, self.args.filters_3)) 
-        
+        self.weight_matrix = torch.nn.Parameter(
+            torch.Tensor(self.args.filters_3, self.args.filters_3)
+        )
+
     def init_parameters(self):
         """
         Initializing weights.
@@ -85,25 +97,25 @@ class DenseAttentionModule(torch.nn.Module):
         """
         Making a forward propagation pass to create a graph level representation.
         :param x: Result of the GNN.
-        :param mask: Mask matrix indicating the valid nodes for each graph. 
-        :return representation: A graph level representation matrix. 
+        :param mask: Mask matrix indicating the valid nodes for each graph.
+        :return representation: A graph level representation matrix.
         """
         B, N, _ = x.size()
-        
+
         if mask is not None:
             num_nodes = mask.view(B, N).sum(dim=1).unsqueeze(-1)
-            mean = x.sum(dim=1)/num_nodes.to(x.dtype)
+            mean = x.sum(dim=1) / num_nodes.to(x.dtype)
         else:
             mean = x.mean(dim=1)
-        
+
         transformed_global = torch.tanh(torch.mm(mean, self.weight_matrix))
-        
+
         koefs = torch.sigmoid(torch.matmul(x, transformed_global.unsqueeze(-1)))
         weighted = koefs * x
-        
+
         if mask is not None:
             weighted = weighted * mask.view(B, N, 1).to(x.dtype)
-        
+
         return weighted.sum(dim=1)
 
 
@@ -111,7 +123,8 @@ class TensorNetworkModule(torch.nn.Module):
     """
     SimGNN Tensor Network module to calculate similarity vector.
     """
-    def __init__(self,args):
+
+    def __init__(self, args):
         """
         :param args: Arguments object.
         """
@@ -124,8 +137,14 @@ class TensorNetworkModule(torch.nn.Module):
         """
         Defining weights.
         """
-        self.weight_matrix = torch.nn.Parameter(torch.Tensor(self.args.filters_3, self.args.filters_3, self.args.tensor_neurons))
-        self.weight_matrix_block = torch.nn.Parameter(torch.Tensor(self.args.tensor_neurons, 2*self.args.filters_3))
+        self.weight_matrix = torch.nn.Parameter(
+            torch.Tensor(
+                self.args.filters_3, self.args.filters_3, self.args.tensor_neurons
+            )
+        )
+        self.weight_matrix_block = torch.nn.Parameter(
+            torch.Tensor(self.args.tensor_neurons, 2 * self.args.filters_3)
+        )
         self.bias = torch.nn.Parameter(torch.Tensor(self.args.tensor_neurons, 1))
 
     def init_parameters(self):
@@ -144,40 +163,48 @@ class TensorNetworkModule(torch.nn.Module):
         :return scores: A similarity score vector.
         """
         batch_size = len(embedding_1)
-        scoring = torch.matmul(embedding_1, self.weight_matrix.view(self.args.filters_3, -1))
+        scoring = torch.matmul(
+            embedding_1, self.weight_matrix.view(self.args.filters_3, -1)
+        )
         scoring = scoring.view(batch_size, self.args.filters_3, -1).permute([0, 2, 1])
-        scoring = torch.matmul(scoring, embedding_2.view(batch_size, self.args.filters_3, 1)).view(batch_size, -1)
+        scoring = torch.matmul(
+            scoring, embedding_2.view(batch_size, self.args.filters_3, 1)
+        ).view(batch_size, -1)
         combined_representation = torch.cat((embedding_1, embedding_2), 1)
-        block_scoring = torch.t(torch.mm(self.weight_matrix_block, torch.t(combined_representation)))
+        block_scoring = torch.t(
+            torch.mm(self.weight_matrix_block, torch.t(combined_representation))
+        )
         scores = F.relu(scoring + block_scoring + self.bias.view(-1))
         return scores
 
 
 class Block(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, mode='cat'):
+    def __init__(self, in_channels, hidden_channels, out_channels, mode="cat"):
         super(Block, self).__init__()
 
         # self.conv1 = DenseSAGEConv(in_channels, hidden_channels)
         # self.conv2 = DenseSAGEConv(hidden_channels, out_channels)
-        
+
         # self.conv1 = DenseGCNConv(in_channels, hidden_channels)
         # self.conv2 = DenseGCNConv(hidden_channels, out_channels)
-        
+
         nn1 = torch.nn.Sequential(
-                Linear(in_channels, hidden_channels), 
-                ReLU(), 
-                Linear(hidden_channels, hidden_channels))
-        
+            Linear(in_channels, hidden_channels),
+            ReLU(),
+            Linear(hidden_channels, hidden_channels),
+        )
+
         nn2 = torch.nn.Sequential(
-                Linear(hidden_channels, out_channels), 
-                ReLU(), 
-                Linear(out_channels, out_channels))
-        
+            Linear(hidden_channels, out_channels),
+            ReLU(),
+            Linear(out_channels, out_channels),
+        )
+
         self.conv1 = DenseGINConv(nn1, train_eps=True)
         self.conv2 = DenseGINConv(nn2, train_eps=True)
-        
+
         self.jump = JumpingKnowledge(mode)
-        if mode == 'cat':
+        if mode == "cat":
             self.lin = Linear(hidden_channels + out_channels, out_channels)
         else:
             self.lin = Linear(out_channels, out_channels)
@@ -196,12 +223,12 @@ class Block(torch.nn.Module):
 class DiffPool(torch.nn.Module):
     def __init__(self, args, num_nodes=10, num_layers=4, hidden=16, ratio=0.25):
         super(DiffPool, self).__init__()
-        
+
         self.args = args
         num_features = self.args.filters_3
-        
+
         self.att = DenseAttentionModule(self.args)
-        
+
         num_nodes = ceil(ratio * num_nodes)
         self.embed_block1 = Block(num_features, hidden, hidden)
         self.pool_block1 = Block(num_features, hidden, num_nodes)
@@ -212,7 +239,7 @@ class DiffPool(torch.nn.Module):
             num_nodes = ceil(ratio * num_nodes)
             self.embed_blocks.append(Block(hidden, hidden, hidden))
             self.pool_blocks.append(Block(hidden, hidden, num_nodes))
-        self.jump = JumpingKnowledge(mode='cat')
+        self.jump = JumpingKnowledge(mode="cat")
         self.lin1 = Linear((len(self.embed_blocks) + 1) * hidden, hidden)
         self.lin2 = Linear(hidden, num_features)
 
@@ -233,8 +260,7 @@ class DiffPool(torch.nn.Module):
         xs = [self.att(x, mask)]
         x, adj, _, _ = dense_diff_pool(x, adj, s, mask)
 
-        for i, (embed, pool) in enumerate(
-                zip(self.embed_blocks, self.pool_blocks)):
+        for i, (embed, pool) in enumerate(zip(self.embed_blocks, self.pool_blocks)):
             s = pool(x, adj)
             x = F.relu(embed(x, adj))
             xs.append(self.att(x))
