@@ -49,12 +49,12 @@ def calculate_prec_at_k(k, prediction, target):
     """
 
     # increase k in case same similarity score values of k-th, (k+i)-th elements
-    target_increase = np.sort(target)
-    target_value_sel = (target_increase <= target_increase[k - 1]).sum()
+    target_increase = np.sort(target)[::-1]
+    target_value_sel = (target_increase >= target_increase[k - 1]).sum()
     k = max(k, target_value_sel)
 
-    best_k_pred = prediction.argsort()[:k]
-    best_k_target = target.argsort()[:k]
+    best_k_pred = prediction.argsort()[::-1][:k]
+    best_k_target = target.argsort()[::-1][:k]
 
     return len(set(best_k_pred).intersection(set(best_k_target))) / k
 
