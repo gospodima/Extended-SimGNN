@@ -222,6 +222,18 @@ class SimGNNTrainer(object):
         """
         self.model = SimGNN(self.args, self.number_of_labels)
 
+    def save(self):
+        """
+        Saving model.
+        """
+        torch.save(self.model.state_dict(), self.args.save)
+
+    def load(self):
+        """
+        Loading model.
+        """
+        self.model.load_state_dict(torch.load(self.args.load))
+
     def process_dataset(self):
         """
         Downloading and processing dataset.

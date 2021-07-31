@@ -14,8 +14,13 @@ def main():
     if args.measure_time:
         trainer.measure_time()
     else:
-        trainer.fit()
+        if args.load:
+            trainer.load()
+        else:
+            trainer.fit()
         trainer.score()
+        if args.save:
+            trainer.save()
 
     if args.notify:
         import os

@@ -106,6 +106,16 @@ def parameter_parser():
 
     parser.add_argument("--synth", dest="synth", action="store_true")
 
+    parser.add_argument("--save",
+                        type=str,
+                        default=None,
+                        help="Path to save the trained model")
+
+    parser.add_argument("--load",
+                        type=str,
+                        default=None,
+                        help="Path to load a pretrained model")
+
     parser.add_argument(
         "--measure-time",
         action="store_true",
