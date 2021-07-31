@@ -227,12 +227,14 @@ class SimGNNTrainer(object):
         Saving model.
         """
         torch.save(self.model.state_dict(), self.args.save)
+        print(f"Model is saved under {self.args.save}.")
 
     def load(self):
         """
         Loading model.
         """
         self.model.load_state_dict(torch.load(self.args.load))
+        print(f"Model is loaded from {self.args.save}.")
 
     def process_dataset(self):
         """
