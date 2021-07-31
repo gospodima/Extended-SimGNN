@@ -70,6 +70,8 @@ Training a SimGNN model is handled by the `src/main.py` script which provides th
 
 #### Other options
 ```
+  --save            STR     Store the model                                         Default is None.
+  --load            STR     Load a pretrained model                                 Default is None.
   --synth           BOOL    Generate and add synth data to the samples.             Default is False.
   --measure-time    BOOL    Measure average calculation time for one graph pair.    Default is False.
 ```
