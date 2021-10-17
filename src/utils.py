@@ -174,40 +174,16 @@ def gen_pair(g, kl=None, ku=2):
     return g2, to_remove + to_add
 
 
+# fmt: off
 def aids_labels(g):
     types = [
-        "O",
-        "S",
-        "C",
-        "N",
-        "Cl",
-        "Br",
-        "B",
-        "Si",
-        "Hg",
-        "I",
-        "Bi",
-        "P",
-        "F",
-        "Cu",
-        "Ho",
-        "Pd",
-        "Ru",
-        "Pt",
-        "Sn",
-        "Li",
-        "Ga",
-        "Tb",
-        "As",
-        "Co",
-        "Pb",
-        "Sb",
-        "Se",
-        "Ni",
-        "Te",
+        "O", "S", "C", "N", "Cl", "Br", "B", "Si", "Hg", "I", "Bi", "P", "F",
+        "Cu", "Ho", "Pd", "Ru", "Pt", "Sn", "Li", "Ga", "Tb", "As", "Co", "Pb",
+        "Sb", "Se", "Ni", "Te"
     ]
 
     return [types[i] for i in g.x.argmax(dim=1).tolist()]
+# fmt: on
 
 
 def draw_graphs(glist, aids=False):
