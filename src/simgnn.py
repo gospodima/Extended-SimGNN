@@ -5,11 +5,12 @@ import torch.nn.functional as F
 from tqdm import tqdm, trange
 from scipy.stats import spearmanr, kendalltau
 
-from layers import AttentionModule, TensorNetworkModule, DiffPool
-from utils import calculate_ranking_correlation, calculate_prec_at_k, gen_pairs
+from .layers import AttentionModule, TensorNetworkModule, DiffPool
+from .utils import calculate_ranking_correlation, calculate_prec_at_k, gen_pairs
 
 from torch_geometric.nn import GCNConv, GINConv
-from torch_geometric.data import DataLoader, Batch
+from torch_geometric.loader import DataLoader
+from torch_geometric.data import Batch
 from torch_geometric.utils import to_dense_batch, to_dense_adj, degree
 from torch_geometric.datasets import GEDDataset
 from torch_geometric.transforms import OneHotDegree
@@ -29,16 +30,19 @@ class SimGNN(torch.nn.Module):
         :param number_of_labels: Number of node labels.
         """
         super(SimGNN, self).__init__()
-        self.args = args
-        self.number_labels = number_of_labels
+        self.args = args    #命令行所输入的所有参数
+        self.number_labels = number_of_labels   #点的标签数 =29
         self.setup_layers()
 
-    def calculate_bottleneck_features(self):
+    def calculate_bottleneck_features(self):    #计算瓶颈特征的形状
         """
         Deciding the shape of the bottleneck layer.
+        在深度学习中，瓶颈特征（bottleneck features）通常指的是在卷积神经网络（CNN）中，位于网络的中间层的特征表示。这些特征表示在网络的前向传播过程中，经过了一系列卷积和池化等操作，并在接近输出层之前的某一层进行了压缩和抽象。
+
+        计算瓶颈特征的目的是提取出图像或输入数据的高级表示，这些表示往往更具有判别性和泛化能力。瓶颈特征可以作为输入数据的一种编码形式，用于训练分类器、回归模型或其他机器学习模型。
         """
-        if self.args.histogram:
-            self.feature_count = self.args.tensor_neurons + self.args.bins
+        if self.args.histogram: #histogram：是否包括直方图特征，默认为false
+            self.feature_count = self.args.tensor_neurons + self.args.bins  #非直方图特征的数量（NTN的数量）+直方图特征的数量
         else:
             self.feature_count = self.args.tensor_neurons
 
@@ -47,29 +51,30 @@ class SimGNN(torch.nn.Module):
         Creating the layers.
         """
         self.calculate_bottleneck_features()
-        if self.args.gnn_operator == "gcn":
-            self.convolution_1 = GCNConv(self.number_labels, self.args.filters_1)
-            self.convolution_2 = GCNConv(self.args.filters_1, self.args.filters_2)
-            self.convolution_3 = GCNConv(self.args.filters_2, self.args.filters_3)
-        elif self.args.gnn_operator == "gin":
+        if self.args.gnn_operator == "gcn": # GCN（Graph Convolutional Network）图卷积网络
+            self.convolution_1 = GCNConv(self.number_labels, self.args.filters_1) #标签数[29,64]
+            self.convolution_2 = GCNConv(self.args.filters_1, self.args.filters_2)#[64,32]
+            self.convolution_3 = GCNConv(self.args.filters_2, self.args.filters_3)#[32,16]
+        elif self.args.gnn_operator == "gin":   # GIN（Graph Isomorphism Network）图同构网络
+            # 使用多个线性层和批标准化层构建了三个序列化的神经网络 nn1、nn2 和 nn3。使用 GINConv 类创建三个 GIN 层，这些层的输入和输出网络由相应的 nn 对象和 train_eps=True 参数指定。
             nn1 = torch.nn.Sequential(
-                torch.nn.Linear(self.number_labels, self.args.filters_1),
+                torch.nn.Linear(self.number_labels, self.args.filters_1),   #[29,64]
                 torch.nn.ReLU(),
-                torch.nn.Linear(self.args.filters_1, self.args.filters_1),
+                torch.nn.Linear(self.args.filters_1, self.args.filters_1),  #[64,64]
                 torch.nn.BatchNorm1d(self.args.filters_1),
             )
 
             nn2 = torch.nn.Sequential(
-                torch.nn.Linear(self.args.filters_1, self.args.filters_2),
+                torch.nn.Linear(self.args.filters_1, self.args.filters_2),  #[64,32]
                 torch.nn.ReLU(),
-                torch.nn.Linear(self.args.filters_2, self.args.filters_2),
+                torch.nn.Linear(self.args.filters_2, self.args.filters_2),  #[32,32]
                 torch.nn.BatchNorm1d(self.args.filters_2),
             )
 
             nn3 = torch.nn.Sequential(
-                torch.nn.Linear(self.args.filters_2, self.args.filters_3),
+                torch.nn.Linear(self.args.filters_2, self.args.filters_3),  #[32,16]
                 torch.nn.ReLU(),
-                torch.nn.Linear(self.args.filters_3, self.args.filters_3),
+                torch.nn.Linear(self.args.filters_3, self.args.filters_3),  #[16,16]
                 torch.nn.BatchNorm1d(self.args.filters_3),
             )
 
@@ -79,16 +84,16 @@ class SimGNN(torch.nn.Module):
         else:
             raise NotImplementedError("Unknown GNN-Operator.")
 
-        if self.args.diffpool:
+        if self.args.diffpool:  #选择不同的池化层（Pooling Layer），默认false
             self.attention = DiffPool(self.args)
         else:
             self.attention = AttentionModule(self.args)
 
         self.tensor_network = TensorNetworkModule(self.args)
-        self.fully_connected_first = torch.nn.Linear(
+        self.fully_connected_first = torch.nn.Linear(   #创建一个全连接层 fully_connected_first，它将瓶颈特征及其大小作为输入特征，输出特征的维度由参数 self.args.bottle_neck_neurons 指定。
             self.feature_count, self.args.bottle_neck_neurons
         )
-        self.scoring_layer = torch.nn.Linear(self.args.bottle_neck_neurons, 1)
+        self.scoring_layer = torch.nn.Linear(self.args.bottle_neck_neurons, 1)  #创建一个线性层 scoring_layer，将全连接层的输出作为输入特征，输出特征维度为 1。
 
     def calculate_histogram(
         self, abstract_features_1, abstract_features_2, batch_1, batch_2
@@ -101,18 +106,18 @@ class SimGNN(torch.nn.Module):
         :param batch_1: Batch vector for target graphs, which assigns each node to a specific example
         :return hist: Histsogram of similarity scores.
         """
-        abstract_features_1, mask_1 = to_dense_batch(abstract_features_1, batch_1)
+        abstract_features_1, mask_1 = to_dense_batch(abstract_features_1, batch_1)  #to_dense_batch中，batch表示每个样本所属的批次
         abstract_features_2, mask_2 = to_dense_batch(abstract_features_2, batch_2)
 
-        B1, N1, _ = abstract_features_1.size()
-        B2, N2, _ = abstract_features_2.size()
+        B1, N1, _ = abstract_features_1.size()  # [128,10,16]
+        B2, N2, _ = abstract_features_2.size()  # [128,10,16]
 
-        mask_1 = mask_1.view(B1, N1)
+        mask_1 = mask_1.view(B1, N1)    # view函数在pytorch中等价于reshape函数
         mask_2 = mask_2.view(B2, N2)
-        num_nodes = torch.max(mask_1.sum(dim=1), mask_2.sum(dim=1))
+        num_nodes = torch.max(mask_1.sum(dim=1), mask_2.sum(dim=1)) # 一对graph pair中最大节点数组成的tensor
 
         scores = torch.matmul(
-            abstract_features_1, abstract_features_2.permute([0, 2, 1])
+            abstract_features_1, abstract_features_2.permute([0, 2, 1]) # 内积计算相似度得分 [128,10,10]
         ).detach()
 
         hist_list = []
@@ -165,7 +170,7 @@ class SimGNN(torch.nn.Module):
         features_2 = data["g2"].x
         batch_1 = (
             data["g1"].batch
-            if hasattr(data["g1"], "batch")
+            if hasattr(data["g1"], "batch")     # 检查 data["g1"] 对象是否具有名为 "batch" 的属性
             else torch.tensor((), dtype=torch.long).new_zeros(data["g1"].num_nodes)
         )
         batch_2 = (
@@ -199,7 +204,7 @@ class SimGNN(torch.nn.Module):
             scores = torch.cat((scores, hist), dim=1)
 
         scores = F.relu(self.fully_connected_first(scores))
-        score = torch.sigmoid(self.scoring_layer(scores)).view(-1)
+        score = torch.sigmoid(self.scoring_layer(scores)).view(-1)  # [128,]
         return score
 
 
@@ -212,15 +217,15 @@ class SimGNNTrainer(object):
         """
         :param args: Arguments object.
         """
-        self.args = args
-        self.process_dataset()
-        self.setup_model()
+        self.args = args    # args是使用argparse模块解析命令行参数后生成的 Namespace 对象。Namespace 是 argparse 模块中的一个类，它用于存储解析后的命令行参数的值。
+        self.process_dataset()  #下载并处理数据集
+        self.setup_model()  #启动SimGNN模型
 
     def setup_model(self):
         """
         Creating a SimGNN.
         """
-        self.model = SimGNN(self.args, self.number_of_labels)
+        self.model = SimGNN(self.args, self.number_of_labels)   #从命令行中获取的参数，标签数目
 
     def save(self):
         """
@@ -239,6 +244,7 @@ class SimGNNTrainer(object):
     def process_dataset(self):
         """
         Downloading and processing dataset.
+        700个分子图，每个图的节点数不大于10，每个节点的的特征向量长度为29（29中类型的节点，独热编码）
         """
         print("\nPreparing dataset.\n")
 
@@ -248,14 +254,14 @@ class SimGNNTrainer(object):
         self.testing_graphs = GEDDataset(
             "datasets/{}".format(self.args.dataset), self.args.dataset, train=False
         )
-        self.nged_matrix = self.training_graphs.norm_ged
-        self.real_data_size = self.nged_matrix.size(0)
+        self.nged_matrix = self.training_graphs.norm_ged    #将训练数据的规范化的图编辑距离矩阵赋值给nged_matrix =[700*700]，表示图和图之间的编辑距离矩阵(700个图）
+        self.real_data_size = self.nged_matrix.size(0)  #真实数据集的大小 =700
 
-        if self.args.synth:
+        if self.args.synth:     #是否需要生成合成数据 =False
             # self.synth_data_1, self.synth_data_2, _, synth_nged_matrix = gen_synth_data(500, 10, 12, 0.5, 0, 3)
             self.synth_data_1, self.synth_data_2, _, synth_nged_matrix = gen_pairs(
                 self.training_graphs.shuffle()[:500], 0, 3
-            )
+            )   #使用 gen_pairs 函数生成一对合成数据，并将结果分别存储在 self.synth_data_1 和 self.synth_data_2 中，合成数据的规范化图编辑距离矩阵存储在 synth_nged_matrix 中。
 
             real_data_size = self.nged_matrix.size(0)
             synth_data_size = synth_nged_matrix.size(0)
@@ -265,17 +271,17 @@ class SimGNNTrainer(object):
                     torch.full((real_data_size, synth_data_size), float("inf")),
                 ),
                 dim=1,
-            )
+            )   #在 self.nged_matrix 的列维度上拼接了一个值为正无穷的矩阵，用于将真实数据集与合成数据集的图编辑距离矩阵进行扩展
             synth_nged_matrix = torch.cat(
                 (
                     torch.full((synth_data_size, real_data_size), float("inf")),
                     synth_nged_matrix,
                 ),
                 dim=1,
-            )
-            self.nged_matrix = torch.cat((self.nged_matrix, synth_nged_matrix))
+            )   #在 synth_nged_matrix 的列维度上拼接了一个值为正无穷的矩阵，用于将合成数据集与真实数据集的图编辑距离矩阵进行扩展。
+            self.nged_matrix = torch.cat((self.nged_matrix, synth_nged_matrix)) #将扩展后的合成数据集和真实数据集的图编辑距离矩阵进行拼接，得到最终的图编辑距离矩阵
 
-        if self.training_graphs[0].x is None:
+        if self.training_graphs[0].x is None:   #检查第一个图对象的x属性是否为 None。如果为 None，表示图对象中没有节点特征。 =[10,29]（每个图有<=10个节点，每个节点被标记为29种类型中的一种）
             max_degree = 0
             for g in (
                 self.training_graphs
@@ -289,18 +295,19 @@ class SimGNNTrainer(object):
             one_hot_degree = OneHotDegree(max_degree, cat=False)
             self.training_graphs.transform = one_hot_degree
             self.testing_graphs.transform = one_hot_degree
+            #计算了图对象中的最大度数，并使用 OneHotDegree 对象创建了一个独热编码的节点度数表示。然后，将这个度数表示赋值给训练数据集和测试数据集的 transform 属性
 
             # labeling of synth data according to real data format
-            if self.args.synth:
+            if self.args.synth: #若为True，则将合成数据集中的图对象的索引 i 增加真实数据集大小的值，用于标识合成数据在整个数据集中的位置。
                 for g in self.synth_data_1 + self.synth_data_2:
                     g = one_hot_degree(g)
                     g.i = g.i + real_data_size
-        elif self.args.synth:
+        elif self.args.synth:   #若为True，则将合成数据集中的图对象的索引 i 增加真实数据集大小的值，并将节点特征 x 进行扩展。
             for g in self.synth_data_1 + self.synth_data_2:
                 g.i = g.i + real_data_size
                 # g.x = torch.cat((g.x, torch.zeros((g.x.size(0), self.training_graphs.num_features-1))), dim=1)
 
-        self.number_of_labels = self.training_graphs.num_features
+        self.number_of_labels = self.training_graphs.num_features   #将训练数据集的节点特征数量作为标签的数量进行保存 =29
 
     def create_batches(self):
         """
@@ -334,7 +341,10 @@ class SimGNNTrainer(object):
     def transform(self, data):
         """
         Getting ged for graph pair and grouping with data into dictionary.
-        :param data: Graph pair.
+        :param data: Graph pair.通常表示为一个包含两个图的元组（tuple），每个图通常是一个字典（dictionary），包含以下关键字：
+            "i"：节点索引，表示图中每个节点的唯一标识。
+            "x"：节点特征，表示图中每个节点的特征向量。
+            "edge_index"：边索引，表示图中边的连接关系
         :return new_data: Dictionary with data.
         """
         new_data = dict()
@@ -342,10 +352,10 @@ class SimGNNTrainer(object):
         new_data["g1"] = data[0]
         new_data["g2"] = data[1]
 
-        normalized_ged = self.nged_matrix[
+        normalized_ged = self.nged_matrix[  #根据图对中的节点索引（data[0]["i"] 和 data[1]["i"]），从 self.nged_matrix 中获取相应的归一化 GED（Graph Edit Distance）值，并将其转换为 Python 列表（list）。
             data[0]["i"].reshape(-1).tolist(), data[1]["i"].reshape(-1).tolist()
         ].tolist()
-        new_data["target"] = (
+        new_data["target"] = (  #将归一化 GED 值取指数（exp）的负值，并将其转换为 PyTorch 张量（tensor），然后设置为字典中的键 "target"。
             torch.from_numpy(np.exp([(-el) for el in normalized_ged])).view(-1).float()
         )
         return new_data
@@ -359,7 +369,7 @@ class SimGNNTrainer(object):
         self.optimizer.zero_grad()
         data = self.transform(data)
         target = data["target"]
-        prediction = self.model(data)
+        prediction = self.model(data)   #这里调用SimGNN类的forward函数
         loss = F.mse_loss(prediction, target, reduction="sum")
         loss.backward()
         self.optimizer.step()
@@ -377,7 +387,8 @@ class SimGNNTrainer(object):
         )
         self.model.train()
 
-        epochs = trange(self.args.epochs, leave=True, desc="Epoch")
+        epochs = trange(self.args.epochs, leave=True, desc="Epoch") #创建一个可迭代的对象 epochs
+        # self.args.epochs：迭代总次数，leave：在迭代完成后是否保留进度条，desc：进度条的描述文本
         loss_list = []
         loss_list_test = []
         for epoch in epochs:
@@ -413,16 +424,16 @@ class SimGNNTrainer(object):
                     loss_list_test.append(scores.mean().item())
                     self.model.train(True)
 
-            batches = self.create_batches()
-            main_index = 0
+            batches = self.create_batches() # 创建批次数据
+            main_index = 0  #初始化主索引
             loss_sum = 0
-            for index, batch_pair in tqdm(
+            for index, batch_pair in tqdm(  #过迭代器 batches 遍历每个批次数据，并使用 tqdm 创建一个进度条
                 enumerate(batches), total=len(batches), desc="Batches", leave=False
             ):
-                loss_score = self.process_batch(batch_pair)
+                loss_score = self.process_batch(batch_pair) # 调用 process_batch 方法对批次数据进行处理
                 main_index = main_index + batch_pair[0].num_graphs
                 loss_sum = loss_sum + loss_score
-            loss = loss_sum / main_index
+            loss = loss_sum / main_index    #计算平均损失
             epochs.set_description("Epoch (Loss=%g)" % round(loss, 5))
             loss_list.append(loss)
 

@@ -6,12 +6,12 @@ def parameter_parser():
     A method to parse up command line parameters.
     The default hyperparameters give a high performance model without grid search.
     """
-    parser = argparse.ArgumentParser(description="Run SimGNN.")
+    parser = argparse.ArgumentParser(description="Run SimGNN.")  # 创建一个命令行参数解析器
 
-    parser.add_argument(
-        "--dataset",
-        nargs="?",
-        default="AIDS700nef",
+    parser.add_argument(  # 向解析器添加了一个命令行参数的定义
+        "--dataset",  # 参数名，双减号表示这是一个长参数
+        nargs="?",  # 参数后面可以跟一个值，这个值可以存在也可以不存在。
+        default="AIDS700nef",  # 如果不提供该参数，则默认为 "AIDS700nef"。
         help="Dataset name. Default is AIDS700nef",
     )
 
@@ -97,8 +97,11 @@ def parameter_parser():
 
     parser.add_argument(
         "--diffpool",
-        dest="diffpool",
-        action="store_true",
+        dest="diffpool",    # 参数的目标属性名称，将该参数的值存储到 args.diffpool 属性中
+                            # 如果没有指定 dest 参数，argparse 默认会根据命令行参数的名称生成目标属性名称。
+                            # 1. 对于长参数名（以 -- 开头），argparse 会将前缀 -- 去除，并将剩余部分的连字符（-）替换为下划线（_）作为目标属性的名称。
+                            # 2. 对于短参数名（以 - 开头），argparse 会将前缀 - 去除，并将剩余部分的每个字符都作为目标属性的名称。
+        action="store_true",    #参数的动作，设置为 store_true 表示如果命令行中出现了该参数，则将其设置为 True。
         help="Enable differentiable pooling.",
     )
 
@@ -129,6 +132,7 @@ def parameter_parser():
         help="Send notification message when the code is finished (only Linux & Mac OS support).",
     )
 
+    # 设置默认参数
     parser.set_defaults(histogram=False)
     parser.set_defaults(diffpool=False)
     parser.set_defaults(plot=False)
