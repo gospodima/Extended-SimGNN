@@ -49,14 +49,15 @@ class AttentionModule(torch.nn.Module):
         :param batch: Batch vector, which assigns each node to a specific example
         :return representation: A graph level representation matrix.
         """
-        size = batch[-1].item() + 1 if size is None else size
-        mean = scatter_mean(x, batch, dim=0, dim_size=size)
-        transformed_global = torch.tanh(torch.mm(mean, self.weight_matrix))
+        size = batch[-1].item() + 1 if size is None else size   #=128，表示批次大小
+        mean = scatter_mean(x, batch, dim=0, dim_size=size) # 按照 batch 维度对输入张量 x 进行分组并求取每组的平均值
+                                                            # 相当于对每个图中节点的特征求平均值 [128,16]
+        transformed_global = torch.tanh(torch.mm(mean, self.weight_matrix)) # 均值乘以可学习的权重得到全局特征 [128,16]*[16,16]=[128,16]
 
-        coefs = torch.sigmoid((x * transformed_global[batch]).sum(dim=1))
-        weighted = coefs.unsqueeze(-1) * x
+        coefs = torch.sigmoid((x * transformed_global[batch]).sum(dim=1))   # 用每一个节点的特征与全局特征作内积，得到相似度权重
+        weighted = coefs.unsqueeze(-1) * x  # 根据相似度权重对每个点进行加权
 
-        return scatter_add(weighted, batch, dim=0, dim_size=size)
+        return scatter_add(weighted, batch, dim=0, dim_size=size)   # 按batch对weighted进行求和汇总，得到图级别的全局特征
 
     def get_coefs(self, x):
         mean = x.mean(dim=0)
@@ -162,16 +163,18 @@ class TensorNetworkModule(torch.nn.Module):
         :param embedding_2: Result of the 2nd embedding after attention.
         :return scores: A similarity score vector.
         """
-        batch_size = len(embedding_1)
-        scoring = torch.matmul(
+        batch_size = len(embedding_1)   #embedding_1=[128,16]
+        # self.weight_matrix.view(self.args.filters_3, -1).shape=[16,256]，原始输入的两个实体都是16维的特征向量，现在用256维来表示它们的某种关系
+        scoring = torch.matmul(     # [128,256]
             embedding_1, self.weight_matrix.view(self.args.filters_3, -1)
         )
-        scoring = scoring.view(batch_size, self.args.filters_3, -1).permute([0, 2, 1])
-        scoring = torch.matmul(
+        scoring = scoring.view(batch_size, self.args.filters_3, -1).permute([0, 2, 1])  # [128,16,16]
+        # embedding_2.view(batch_size, self.args.filters_3, 1).shape=[128,16,1]
+        scoring = torch.matmul(     # [128,16]
             scoring, embedding_2.view(batch_size, self.args.filters_3, 1)
         ).view(batch_size, -1)
-        combined_representation = torch.cat((embedding_1, embedding_2), 1)
-        block_scoring = torch.t(
+        combined_representation = torch.cat((embedding_1, embedding_2), 1)  # [128,32]
+        block_scoring = torch.t(    # ([16,32]*[32,128])^T=[128,16]
             torch.mm(self.weight_matrix_block, torch.t(combined_representation))
         )
         scores = F.relu(scoring + block_scoring + self.bias.view(-1))
